@@ -73,7 +73,7 @@ export const getRyeVariantFromVgcVariant = async (vgcVariant) => {
     console.log(item);
 
     await mongoClient.close();
-    return item.ryeVariantId;
+    return item ? item.ryeVariantId : null;
   } catch (err) {
     console.log(err);
   }
