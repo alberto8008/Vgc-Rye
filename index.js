@@ -69,6 +69,7 @@ app.post("/vgc-order-paid", (req, res) => {
 });
 
 app.post("/vgc-shipping", async (req, res) => {
+  console.log(req.body);
   const shipping_info = {
     firstName: req.body["shipping_address"]["first_name"],
     lastName: req.body["shipping_address"]["last_name"],
