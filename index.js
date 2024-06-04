@@ -78,7 +78,6 @@ app.post("/vgc-shipping", async (req, res) => {
     countryCode: req.body["shipping_address"]["country_code"],
     postalCode: req.body["shipping_address"]["zip"],
   };
-  console.log(req.body);
   const line_items = req.body.line_items;
   const cart_items = [];
   line_items.forEach((element) => {

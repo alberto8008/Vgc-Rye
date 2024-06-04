@@ -1,9 +1,13 @@
 import { GraphQLClient, gql } from "graphql-request";
 import {
+  productPublishMutation,
   updateProductMutation,
   variantPriceSetMutation,
 } from "../Graphql/mutation.js";
-import { fetchProductIDFromHandleQuery } from "../Graphql/query.js";
+import {
+  fetchProductIDFromHandleQuery,
+  getPublicationsQuery,
+} from "../Graphql/query.js";
 import { fetchProductsFromRYE } from "./rye.js";
 import { config } from "dotenv";
 import { MongoClient, ServerApiVersion } from "mongodb";
@@ -25,16 +29,24 @@ const mongoClient = new MongoClient(process.env.MONGO_URI, {
   },
 });
 
+const getPublications = async () => {
+  const getPublicationsQueryResponse = await VGCClient.request(
+    getPublicationsQuery,
+    {}
+  );
+  return getPublicationsQueryResponse.publications.edges;
+};
+
 export const createProductsOnStore = async (productUrls) => {
   let numberOfCreatedProducts = 0;
   const ryeProducts = await fetchProductsFromRYE(productUrls);
+  const publications = await getPublications();
 
   await mongoClient.connect();
   const dbo = mongoClient.db("shopify-rye");
 
   await Promise.all(
     ryeProducts.map(async (element) => {
-      console.log(element.product);
       const productCreateMutation = gql`
                     mutation productCreate(
                       $input: ProductInput!
@@ -71,6 +83,7 @@ export const createProductsOnStore = async (productUrls) => {
           productType: element.product.productType,
           tags: element.product.tags.join(","),
           handle: element.product.handle,
+          status: "ACTIVE",
         },
         media: element.product.images.map((image) => ({
           originalSource: image.url,
@@ -109,6 +122,22 @@ export const createProductsOnStore = async (productUrls) => {
       } catch (err) {
         console.log(err);
       }
+
+      // Publish the product to sales channels
+      await Promise.all(
+        publications.map(async (publication) => {
+          const productPublishMutationVariables = {
+            id: productCreateResponse.productCreate.product.id,
+            input: {
+              publicationId: publication.node.id,
+            },
+          };
+          return await VGCClient.request(
+            productPublishMutation,
+            productPublishMutationVariables
+          );
+        })
+      );
 
       productCreateResponse.productCreate.product.variants.nodes.forEach(
         (variant) => variants.push(variant.id)

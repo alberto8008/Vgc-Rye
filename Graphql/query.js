@@ -73,3 +73,23 @@ export const fetchProductIDFromHandleQuery = gql`
     }
   }
 `;
+
+export const getPublicationsQuery = gql`
+  query publications {
+    publications(first: 5) {
+      edges {
+        node {
+          id
+          name
+          supportsFuturePublishing
+          app {
+            id
+            title
+            description
+            developerName
+          }
+        }
+      }
+    }
+  }
+`;
