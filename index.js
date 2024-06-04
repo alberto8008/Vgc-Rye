@@ -80,9 +80,9 @@ app.post("/vgc-shipping", async (req, res) => {
   };
   const line_items = req.body.line_items;
   const cart_items = [];
-  line_items.forEach((element) => {
+  line_items.forEach(async (element) => {
     cart_items.push({
-      variantId: getRyeVariantFromVgcVariant(element.variant_id),
+      variantId: await getRyeVariantFromVgcVariant(element.variant_id),
       quantity: element.quantity,
     });
   });
