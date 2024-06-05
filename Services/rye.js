@@ -133,11 +133,11 @@ export const calculateShipping = async (shippingInfo, lineItems) => {
   const createCartVariables = {
     input: {
       items: {
-        shopifyCartItemsInput: cartItems.filter((item) =>
-          isNaN(parseInt(item.variantId) === false)
+        shopifyCartItemsInput: cartItems.filter(
+          (item) => parseInt(item.variantId) !== NaN
         ),
-        amazonCartItemsInput: cartItems.filter((item) =>
-          isNaN(parseInt(item.variantId) === true)
+        amazonCartItemsInput: cartItems.filter(
+          (item) => parseInt(item.variantId) === NaN
         ),
       },
       buyerIdentity: shippingInfo,
@@ -148,7 +148,6 @@ export const calculateShipping = async (shippingInfo, lineItems) => {
     createCartMutation,
     createCartVariables
   );
-  console.log(createCartMutationResponse.createCart.cart.stores);
 
   let shippingCost = 0;
   if (createCartMutationResponse.createCart.errors.length === 0)

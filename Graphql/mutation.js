@@ -66,6 +66,7 @@ export const createCartMutation = gql`
                 variantIds
               }
             }
+            store
             cartLines {
               quantity
               variant {

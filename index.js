@@ -101,6 +101,11 @@ app.post("/vgc-shipping", async (req, res) => {
   return res.status(200).json({ shippingCost: shippingCost });
 });
 
+app.post("/vgc-order-payment", async (req, res) => {
+  console.log(req.body);
+  return res.send(200);
+});
+
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`);
 });
