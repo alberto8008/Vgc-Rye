@@ -93,12 +93,12 @@ app.post("/vgc-shipping", async (req, res) => {
     postalCode: req.body["shipping_address"]["zip"],
   };
 
-  const availableShippingMethods = await calculateShipping(
+  const shippingCost = await calculateShipping(
     shippingInfo,
     req.body.line_items
   );
 
-  return res.status(200).json({ shippingMethods: availableShippingMethods });
+  return res.status(200).json({ shippingCost: shippingCost });
 });
 
 app.listen(port, () => {

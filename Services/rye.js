@@ -133,7 +133,12 @@ export const calculateShipping = async (shippingInfo, lineItems) => {
   const createCartVariables = {
     input: {
       items: {
-        shopifyCartItemsInput: cartItems,
+        shopifyCartItemsInput: cartItems.filter((item) =>
+          isNaN(parseInt(item.variantId) === false)
+        ),
+        amazonCartItemsInput: cartItems.filter((item) =>
+          isNaN(parseInt(item.variantId) === true)
+        ),
       },
       buyerIdentity: shippingInfo,
     },
@@ -145,6 +150,11 @@ export const calculateShipping = async (shippingInfo, lineItems) => {
   );
   console.log(createCartMutationResponse.createCart.cart.stores);
 
-  // return createCartMutationResponse.createCart.cart.stores.offer
-  //   .shippingMethods;
+  let shippingCost = 0;
+  if (createCartMutationResponse.createCart.errors.length === 0)
+    createCartMutationResponse.createCart.cart.stores.forEach(
+      (store) => (shippingCost += store.offer.shippingMethods[0].price.value)
+    );
+
+  return shippingCost;
 };
