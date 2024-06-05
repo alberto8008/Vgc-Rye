@@ -1,5 +1,8 @@
 import { GraphQLClient, gql } from "graphql-request";
-import { ryeFetchShopifyProductsQuery } from "../Graphql/query.js";
+import {
+  ryeFetchAmazonProductsQuery,
+  ryeFetchShopifyProductsQuery,
+} from "../Graphql/query.js";
 import { config } from "dotenv";
 import { createCartMutation } from "../Graphql/mutation.js";
 import { MongoClient, ServerApiVersion } from "mongodb";
@@ -21,11 +24,11 @@ const mongoClient = new MongoClient(process.env.MONGO_URI, {
   },
 });
 
-export const fetchProductsFromRYE = async (productUrls) => {
+export const fetchShopifyProductsFromRYE = async (productUrls) => {
   console.log("rye url counts:", productUrls.length);
   const ryeProductIds = await Promise.all(
     productUrls.map(async (url) => {
-      const ryeFetchProductIdMutation = gql`
+      const ryeFetchShopifyProductIdMutation = gql`
                       mutation RequestShopifyProductByURL {
                           requestShopifyProductByURL(
                           input: {
@@ -37,7 +40,7 @@ export const fetchProductsFromRYE = async (productUrls) => {
                           }
                       }
                   `;
-      return await RYEClient.request(ryeFetchProductIdMutation, {});
+      return await RYEClient.request(ryeFetchShopifyProductIdMutation, {});
     })
   );
 
@@ -60,26 +63,73 @@ export const fetchProductsFromRYE = async (productUrls) => {
   return ryeProducts;
 };
 
-export const makeOrder = async (orderInfo) => {};
+export const fetchAmazonProductsFromRYE = async (productUrls) => {
+  console.log("rye url counts:", productUrls.length);
+  const ryeProductIds = await Promise.all(
+    productUrls.map(async (url) => {
+      const ryeFetchAmazonProductIdMutation = gql`
+                      mutation RequestAmazonProductByURL {
+                        requestAmazonProductByURL(
+                          input: {
+                              url: "${url}"
+                          }
+                          ) {
+                          productId
+                          }
+                      }
+                  `;
+      return await RYEClient.request(ryeFetchAmazonProductIdMutation, {});
+    })
+  );
 
-export const getRyeVariantFromVgcVariant = async (vgcVariant) => {
-  try {
-    await mongoClient.connect();
-    const dbo = mongoClient.db("shopify-rye");
-    const collection = dbo.collection("variant-mapping");
+  const ryeProducts = await Promise.all(
+    ryeProductIds.map(async (product) => {
+      const ryeFetchProductsQueryVariable = {
+        input: {
+          id: product.requestAmazonProductByURL.productId,
+          marketplace: "AMAZON",
+        },
+      };
 
-    const query = { vgcVariantId: vgcVariant };
-    const item = await collection.findOne(query);
-    console.log(item);
+      return await RYEClient.request(
+        ryeFetchAmazonProductsQuery,
+        ryeFetchProductsQueryVariable
+      );
+    })
+  );
 
-    await mongoClient.close();
-    return item ? item.ryeVariantId : null;
-  } catch (err) {
-    console.log(err);
-  }
+  return ryeProducts;
 };
 
-export const calculateShipping = async (shippingInfo, cartItems) => {
+export const makeOrder = async (orderInfo) => {};
+
+const getRyeVariantsFromVgcVariants = async (vgcVariants) => {
+  await mongoClient.connect();
+  const dbo = mongoClient.db("shopify-rye");
+  const collection = dbo.collection("variant-mapping");
+  const cartItems = [];
+
+  await Promise.all(
+    vgcVariants.map(async (variant) => {
+      const item = await collection.findOne({
+        vgcVariantId: variant.variant_id.toString(),
+      });
+      if (item)
+        cartItems.push({
+          quantity: variant.quantity,
+          variantId: item.ryeVariantId,
+        });
+      return true;
+    })
+  );
+
+  await mongoClient.close();
+
+  return cartItems;
+};
+
+export const calculateShipping = async (shippingInfo, lineItems) => {
+  const cartItems = await getRyeVariantsFromVgcVariants(lineItems);
   const createCartVariables = {
     input: {
       items: {
@@ -93,7 +143,8 @@ export const calculateShipping = async (shippingInfo, cartItems) => {
     createCartMutation,
     createCartVariables
   );
+  console.log(createCartMutationResponse.createCart.cart.stores);
 
-  return createCartMutationResponse.data.createCart.cart.stores.offer
-    .shippingMethods;
+  // return createCartMutationResponse.createCart.cart.stores.offer
+  //   .shippingMethods;
 };

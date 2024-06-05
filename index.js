@@ -2,11 +2,12 @@ import express from "express";
 import bodyParser from "body-parser";
 import cors from "cors";
 import { config } from "dotenv";
-import { createProductsOnStore, updateProductOnStore } from "./Services/vgc.js";
 import {
-  calculateShipping,
-  getRyeVariantFromVgcVariant,
-} from "./Services/rye.js";
+  createAmazonProductsOnStore,
+  createShopifyProductsOnStore,
+  updateProductOnStore,
+} from "./Services/vgc.js";
+import { calculateShipping } from "./Services/rye.js";
 
 config();
 
@@ -18,7 +19,20 @@ app.use(cors());
 
 app.post("/import-shopify-products", async (req, res) => {
   if (req.body.product_urls.length > 0) {
-    const importedProductCounts = await createProductsOnStore(
+    const importedProductCounts = await createShopifyProductsOnStore(
+      req.body.product_urls
+    );
+    return res.status(200).json({
+      "number of imported products": importedProductCounts,
+      "number of required products": req.body.product_urls.length,
+    });
+  }
+  return res.status(422).json({ error: "No urls provided" });
+});
+
+app.post("/import-amazon-products", async (req, res) => {
+  if (req.body.product_urls.length > 0) {
+    const importedProductCounts = await createAmazonProductsOnStore(
       req.body.product_urls
     );
     return res.status(200).json({
@@ -61,7 +75,7 @@ app.post("/rye-webhooks", async (req, res) => {
 // });
 
 app.post("/vgc-order-paid", (req, res) => {
-  const order_info = {
+  const orderInfo = {
     id: req.body.id,
     products: req.body.line_items,
     billingInfo: req.body.billing_address,
@@ -69,8 +83,7 @@ app.post("/vgc-order-paid", (req, res) => {
 });
 
 app.post("/vgc-shipping", async (req, res) => {
-  console.log(req.body);
-  const shipping_info = {
+  const shippingInfo = {
     firstName: req.body["shipping_address"]["first_name"],
     lastName: req.body["shipping_address"]["last_name"],
     email: req.body.email,
@@ -79,22 +92,12 @@ app.post("/vgc-shipping", async (req, res) => {
     countryCode: req.body["shipping_address"]["country_code"],
     postalCode: req.body["shipping_address"]["zip"],
   };
-  const line_items = req.body.line_items;
-  const cart_items = [];
-  line_items.forEach(async (element) => {
-    const variantId = await getRyeVariantFromVgcVariant(element.variant_id);
-    if (variantId)
-      cart_items.push({
-        variantId: await getRyeVariantFromVgcVariant(element.variant_id),
-        quantity: element.quantity,
-      });
-  });
+
   const availableShippingMethods = await calculateShipping(
-    shipping_info,
-    cart_items
+    shippingInfo,
+    req.body.line_items
   );
 
-  console.log(availableShippingMethods);
   return res.status(200).json({ shippingMethods: availableShippingMethods });
 });
 

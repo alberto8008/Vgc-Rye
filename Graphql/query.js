@@ -66,6 +66,87 @@ export const ryeFetchShopifyProductsQuery = gql`
   }
 `;
 
+export const ryeFetchAmazonProductsQuery = gql`
+  query DemoAmazonShopifyProductFetch($input: ProductByIDInput!) {
+    amazonItem1: productByID(input: $input) {
+      id
+      title
+      marketplace
+      description
+      vendor
+      url
+      isAvailable
+      tags
+      images {
+        url
+      }
+      variants {
+        title
+      }
+      price {
+        currency
+        displayValue
+        value
+      }
+      ... on AmazonProduct {
+        ASIN
+        titleExcludingVariantName
+        categories {
+          name
+          url
+        }
+        featureBullets
+        parentID
+        protectionPlans {
+          title
+          price {
+            value
+            currency
+            displayValue
+          }
+          id
+        }
+        ratingsTotal
+        reviewsTotal
+        marketplace
+        variants {
+          title
+          image {
+            url
+            ... on AmazonImage {
+              position
+              width
+              height
+            }
+          }
+        }
+        subtitle {
+          text
+          url
+        }
+        videos {
+          durationSeconds
+          width
+          height
+          url
+          thumbnailURL
+          title
+        }
+        specifications {
+          name
+          value
+        }
+        color
+        manufacturer
+        weight
+        firstAvailable
+        dimensions
+        modelNumber
+      }
+    }
+  }
+`;
+
 export const fetchProductIDFromHandleQuery = gql`
   query getProductIdFromHandle($handle: String!) {
     productByHandle(handle: $handle) {
