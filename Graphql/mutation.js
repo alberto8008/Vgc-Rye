@@ -166,3 +166,45 @@ export const productPublishMutation = gql`
     }
   }
 `;
+
+export const submitCartMutation = gql`
+  mutation SubmitCart($input: CartSubmitInput!) {
+    submitCart(input: $input) {
+      cart {
+        id
+        stores {
+          status
+          orderId
+          store {
+            ... on AmazonStore {
+              store
+              cartLines {
+                quantity
+                product {
+                  id
+                }
+              }
+            }
+            ... on ShopifyStore {
+              store
+              cartLines {
+                quantity
+                variant {
+                  id
+                }
+              }
+            }
+          }
+          errors {
+            code
+            message
+          }
+        }
+      }
+      errors {
+        code
+        message
+      }
+    }
+  }
+`;

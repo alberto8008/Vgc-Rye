@@ -4,10 +4,25 @@ import {
   ryeFetchShopifyProductsQuery,
 } from "../Graphql/query.js";
 import { config } from "dotenv";
-import { createCartMutation } from "../Graphql/mutation.js";
+import { createCartMutation, submitCartMutation } from "../Graphql/mutation.js";
 import { MongoClient, ServerApiVersion } from "mongodb";
+import axios from "axios";
+import request from "request";
 
 config();
+
+const paymentMethod = {
+  payment_method: {
+    credit_card: {
+      first_name: "John",
+      last_name: "Doe",
+      number: "4242424242424242",
+      verification_value: "553",
+      month: "12",
+      year: "2024",
+    },
+  },
+};
 
 const RYEClient = new GraphQLClient(process.env.RYE_GRAPHQL_ENDPOINT, {
   headers: {
@@ -128,8 +143,7 @@ const getRyeVariantsFromVgcVariants = async (vgcVariants) => {
   return cartItems;
 };
 
-export const calculateShipping = async (shippingInfo, lineItems) => {
-  const cartItems = await getRyeVariantsFromVgcVariants(lineItems);
+const createRyeCart = async (shippingInfo, cartItems) => {
   const createCartVariables = {
     input: {
       items: {
@@ -149,6 +163,19 @@ export const calculateShipping = async (shippingInfo, lineItems) => {
     createCartVariables
   );
 
+  if (createCartMutationResponse.createCart.errors.length === 0)
+    return createCartMutationResponse;
+  return null;
+};
+
+export const calculateShipping = async (shippingInfo, lineItems) => {
+  const cartItems = await getRyeVariantsFromVgcVariants(lineItems);
+
+  const createCartMutationResponse = await createRyeCart(
+    shippingInfo,
+    cartItems
+  );
+
   let shippingCost = 0;
   if (createCartMutationResponse.createCart.errors.length === 0)
     createCartMutationResponse.createCart.cart.stores.forEach(
@@ -156,4 +183,47 @@ export const calculateShipping = async (shippingInfo, lineItems) => {
     );
 
   return shippingCost;
+};
+
+export const submitRyeCart = async (shippingInfo, lineItems) => {
+  const cartItems = await getRyeVariantsFromVgcVariants(lineItems);
+  const createCartMutationResponse = await createRyeCart(
+    shippingInfo,
+    cartItems
+  );
+  const cartId = createCartMutationResponse.createCart.cart.id;
+  const shippingOptions = createCartMutationResponse.createCart.cart.stores.map(
+    (store) => ({
+      store: store.store,
+      shippingId: store.offer.shippingMethods[0].id,
+    })
+  );
+
+  let config = {
+    method: "post",
+    maxBodyLength: Infinity,
+    url: process.env.SPREEDLY_URL,
+    headers: {
+      Authorization: process.env.PAYMENT_GATEWAY_AUTH,
+      "Content-Type": "application/json",
+    },
+    data: JSON.stringify(paymentMethod),
+  };
+
+  const spreedlyResponse = await axios.request(config);
+  const paymentToken = spreedlyResponse.data.transaction.payment_method.token;
+
+  const submitCartMutationVariables = {
+    input: {
+      id: cartId,
+      token: paymentToken,
+      selectedShippingOptions: shippingOptions,
+    },
+  };
+
+  const submitCartMutationResponse = await RYEClient.request(
+    submitCartMutation,
+    submitCartMutationVariables
+  );
+  return null;
 };

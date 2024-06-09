@@ -7,7 +7,7 @@ import {
   createShopifyProductsOnStore,
   updateProductOnStore,
 } from "./Services/vgc.js";
-import { calculateShipping } from "./Services/rye.js";
+import { calculateShipping, submitRyeCart } from "./Services/rye.js";
 
 config();
 
@@ -83,26 +83,53 @@ app.post("/vgc-order-paid", (req, res) => {
 });
 
 app.post("/vgc-shipping", async (req, res) => {
+  console.log(req.body);
+  const shippingInfo = {
+    firstName: req.body.rate.destination.name.split(" ")[0],
+    lastName: req.body.rate.destination.name.split(" ")[1],
+    email: req.body.rate.destination.email,
+    phone: req.body.rate.destination.phone,
+    address1: req.body.rate.destination.address1,
+    city: req.body.rate.destination.city,
+    provinceCode: req.body.rate.destination.province,
+    countryCode: req.body.rate.destination.country,
+    postalCode: req.body.rate.destination.postal_code,
+  };
+  const shippingCost = await calculateShipping(
+    shippingInfo,
+    req.body.rate.destination.items
+  );
+
+  const response = {
+    rates: [
+      {
+        service_name: "Rye Standard Shipping",
+        service_code: "standard",
+        description: "Standard Shipping",
+        total_price: shippingCost,
+        currency: req.body.rate.currency,
+      },
+    ],
+  };
+  console.log(response);
+
+  res.send(response);
+});
+
+app.post("/vgc-order-payment", async (req, res) => {
   const shippingInfo = {
     firstName: req.body["shipping_address"]["first_name"],
     lastName: req.body["shipping_address"]["last_name"],
     email: req.body.email,
     phone: req.body["shipping_address"]["phone"],
+    address1: req.body["shipping_address"]["address1"],
+    city: req.body["shipping_address"]["city"],
     provinceCode: req.body["shipping_address"]["province_code"],
     countryCode: req.body["shipping_address"]["country_code"],
     postalCode: req.body["shipping_address"]["zip"],
   };
 
-  const shippingCost = await calculateShipping(
-    shippingInfo,
-    req.body.line_items
-  );
-
-  return res.status(200).json({ shippingCost: shippingCost });
-});
-
-app.post("/vgc-order-payment", async (req, res) => {
-  console.log(req.body);
+  const response = await submitRyeCart(shippingInfo, req.body.line_items);
   return res.send(200);
 });
 
