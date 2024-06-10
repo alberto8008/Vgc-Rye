@@ -97,7 +97,7 @@ app.post("/vgc-shipping", async (req, res) => {
   };
   const shippingCost = await calculateShipping(
     shippingInfo,
-    req.body.rate.destination.items
+    req.body.rate.origin.items
   );
 
   const response = {
